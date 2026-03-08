@@ -1,0 +1,150 @@
+{
+  "common": {
+    "name": "duosidaems",
+    "version": "0.1.1",
+    "news": {
+      "0.1.0": {
+        "en": "Initial custom release: local TCP transport, X-Cheng cloud transport, auto mode, EMS-friendly control states.",
+        "de": "Erste Custom-Version: lokaler TCP-Transport, X-Cheng-Cloud-Transport, Auto-Modus und EMS-taugliche Steuerstates."
+      },
+      "0.1.1": {
+        "en": "Added a dedicated datapoints specification for EMS integrations and clarified the minimal read/write state model.",
+        "de": "Eigene Datenpunkt-Spezifikation für EMS-Integrationen ergänzt und das minimale Read/Write-State-Modell klar dokumentiert."
+      }
+    },
+    "titleLang": {
+      "en": "Duosida EMS",
+      "de": "Duosida EMS"
+    },
+    "desc": {
+      "en": "Controls older Duosida / SmartCharge / DS Charge wallboxes via local TCP or the X-Cheng cloud.",
+      "de": "Steuert ältere Duosida-/SmartCharge-/DS-Charge-Wallboxen per lokalem TCP oder über die X-Cheng-Cloud."
+    },
+    "authors": [
+      "Dominique"
+    ],
+    "icon": "duosidaems.png",
+    "mode": "daemon",
+    "type": "energy",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "poll",
+    "loglevel": "info",
+    "enabled": true,
+    "adminUI": {
+      "config": "json"
+    },
+    "statusStates": {
+      "onlineId": "info.connection"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=6.0.11"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=7.7.22"
+      }
+    ],
+    "platform": "Javascript/Node.js"
+  },
+  "protectedNative": [
+    "cloudPassword"
+  ],
+  "encryptedNative": [
+    "cloudPassword"
+  ],
+  "native": {
+    "transport": "auto",
+    "pollIntervalSec": 10,
+    "discoveryOnStart": true,
+    "requestChargeRecords": true,
+    "logRawFrames": false,
+    "host": "",
+    "port": 9988,
+    "localDeviceId": "",
+    "discoveryInterface": "0.0.0.0",
+    "discoveryTimeoutSec": 4,
+    "cloudUsername": "",
+    "cloudPassword": "",
+    "cloudDeviceId": "",
+    "allowInsecureTls": true,
+    "commandDebounceMs": 1000,
+    "commandMinGapMs": 1500,
+    "localTimeoutMs": 5000,
+    "failoverThreshold": 3
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "name": "Connection to charger or cloud",
+        "type": "boolean",
+        "role": "indicator.connected",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.transportConfigured",
+      "type": "state",
+      "common": {
+        "name": "Configured transport",
+        "type": "string",
+        "role": "text",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.transportActive",
+      "type": "state",
+      "common": {
+        "name": "Active transport",
+        "type": "string",
+        "role": "text",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.lastError",
+      "type": "state",
+      "common": {
+        "name": "Last error",
+        "type": "string",
+        "role": "text",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.lastPoll",
+      "type": "state",
+      "common": {
+        "name": "Last successful poll",
+        "type": "number",
+        "role": "date",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    }
+  ]
+}

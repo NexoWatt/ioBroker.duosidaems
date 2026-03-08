@@ -1,0 +1,40 @@
+{
+  "name": "iobroker.duosidaems",
+  "version": "0.1.1",
+  "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with local TCP and cloud fallback",
+  "author": "Dominique",
+  "license": "MIT",
+  "main": "main.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "iobroker",
+    "duosida",
+    "wallbox",
+    "evse",
+    "ev charger",
+    "smartcharge",
+    "ds charge",
+    "ems"
+  ],
+  "files": [
+    "admin/",
+    "lib/",
+    "test/",
+    "main.js",
+    "io-package.json",
+    "LICENSE",
+    "README.md",
+    "DATAPOINTS.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check:syntax": "node --check main.js && node --check lib/status.js && node --check lib/protobuf.js && node --check lib/localClient.js && node --check lib/discovery.js && node --check lib/cloudClient.js && node --check lib/objectDefinitions.js"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.3.2"
+  }
+}

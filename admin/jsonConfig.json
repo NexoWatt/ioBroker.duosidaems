@@ -1,0 +1,239 @@
+{
+  "type": "tabs",
+  "i18n": false,
+  "items": {
+    "main": {
+      "type": "panel",
+      "label": "Main",
+      "items": {
+        "_intro": {
+          "type": "staticText",
+          "text": "One adapter instance controls one wallbox. Create multiple instances if you have multiple chargers."
+        },
+        "transport": {
+          "newLine": true,
+          "type": "select",
+          "label": "Transport",
+          "help": "auto = try local first, then cloud fallback",
+          "xs": 12,
+          "sm": 12,
+          "md": 4,
+          "lg": 4,
+          "options": [
+            {
+              "label": "auto",
+              "value": "auto"
+            },
+            {
+              "label": "local",
+              "value": "local"
+            },
+            {
+              "label": "cloud",
+              "value": "cloud"
+            }
+          ]
+        },
+        "pollIntervalSec": {
+          "type": "number",
+          "label": "Poll interval (s)",
+          "min": 5,
+          "max": 300,
+          "step": 1,
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4
+        },
+        "discoveryOnStart": {
+          "type": "checkbox",
+          "label": "Run local UDP discovery on startup",
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4
+        },
+        "requestChargeRecords": {
+          "newLine": true,
+          "type": "checkbox",
+          "label": "Query cloud charge records (today / total energy)",
+          "xs": 12,
+          "sm": 6,
+          "md": 6,
+          "lg": 6
+        },
+        "logRawFrames": {
+          "type": "checkbox",
+          "label": "Debug: log local raw frame sizes",
+          "xs": 12,
+          "sm": 6,
+          "md": 6,
+          "lg": 6
+        }
+      }
+    },
+    "local": {
+      "type": "panel",
+      "label": "Local TCP",
+      "items": {
+        "_localInfo": {
+          "type": "staticText",
+          "text": "Older SmartCharge models can usually be found via UDP broadcast (48890 → 48899) and controlled locally on TCP port 9988."
+        },
+        "host": {
+          "newLine": true,
+          "type": "text",
+          "label": "Wallbox host / IP",
+          "help": "Leave empty if you want startup discovery to resolve it",
+          "xs": 12,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        },
+        "port": {
+          "type": "number",
+          "label": "TCP port",
+          "min": 1,
+          "max": 65535,
+          "step": 1,
+          "xs": 12,
+          "sm": 6,
+          "md": 3,
+          "lg": 3
+        },
+        "localDeviceId": {
+          "type": "text",
+          "label": "Local device ID (optional)",
+          "help": "19-digit device ID; if empty the adapter tries to read it from the wallbox",
+          "xs": 12,
+          "sm": 6,
+          "md": 3,
+          "lg": 3
+        },
+        "discoveryInterface": {
+          "newLine": true,
+          "type": "text",
+          "label": "Discovery bind address",
+          "help": "Usually 0.0.0.0. Change only if you need a specific interface.",
+          "xs": 12,
+          "sm": 6,
+          "md": 6,
+          "lg": 6
+        },
+        "discoveryTimeoutSec": {
+          "type": "number",
+          "label": "Discovery timeout (s)",
+          "min": 1,
+          "max": 30,
+          "step": 1,
+          "xs": 12,
+          "sm": 6,
+          "md": 3,
+          "lg": 3
+        },
+        "localTimeoutMs": {
+          "type": "number",
+          "label": "Local TCP timeout (ms)",
+          "min": 1000,
+          "max": 20000,
+          "step": 500,
+          "xs": 12,
+          "sm": 6,
+          "md": 3,
+          "lg": 3
+        }
+      }
+    },
+    "cloud": {
+      "type": "panel",
+      "label": "Cloud",
+      "items": {
+        "_cloudInfo": {
+          "type": "staticText",
+          "text": "Cloud mode targets the X-Cheng backend used by DS Charge / SmartCharge app families. It is mainly useful for app-bound older chargers where local TCP is not reachable."
+        },
+        "cloudUsername": {
+          "newLine": true,
+          "type": "text",
+          "label": "Cloud username / email",
+          "xs": 12,
+          "sm": 12,
+          "md": 5,
+          "lg": 5
+        },
+        "cloudPassword": {
+          "type": "password",
+          "label": "Cloud password",
+          "xs": 12,
+          "sm": 12,
+          "md": 5,
+          "lg": 5
+        },
+        "allowInsecureTls": {
+          "type": "checkbox",
+          "label": "Allow insecure TLS / certificate fallback",
+          "help": "Enabled by default because community integrations disable strict TLS validation against this backend.",
+          "xs": 12,
+          "sm": 12,
+          "md": 2,
+          "lg": 2
+        },
+        "cloudDeviceId": {
+          "newLine": true,
+          "type": "text",
+          "label": "Cloud device ID (optional)",
+          "help": "Leave empty to auto-select the first cloud device",
+          "xs": 12,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        }
+      }
+    },
+    "advanced": {
+      "type": "panel",
+      "label": "Advanced",
+      "items": {
+        "_advancedInfo": {
+          "type": "staticText",
+          "text": "Local TCP config values are write-only on the wallbox. The adapter mirrors the last written values in charger.control.* states so your EMS can keep a stable desired setpoint."
+        },
+        "commandDebounceMs": {
+          "newLine": true,
+          "type": "number",
+          "label": "Max-current debounce (ms)",
+          "min": 0,
+          "max": 10000,
+          "step": 100,
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4
+        },
+        "commandMinGapMs": {
+          "type": "number",
+          "label": "Minimum gap between commands (ms)",
+          "min": 0,
+          "max": 10000,
+          "step": 100,
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4
+        },
+        "failoverThreshold": {
+          "type": "number",
+          "label": "Auto failover threshold",
+          "help": "Number of consecutive local poll failures before auto mode switches to cloud",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4
+        }
+      }
+    }
+  }
+}
