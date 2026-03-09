@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "duosidaems",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "news": {
       "0.1.0": {
         "en": "Initial custom release: local TCP transport, X-Cheng cloud transport, auto mode, EMS-friendly control states.",
@@ -10,6 +10,10 @@
       "0.1.1": {
         "en": "Added a dedicated datapoints specification for EMS integrations and clarified the minimal read/write state model.",
         "de": "Eigene Datenpunkt-Spezifikation für EMS-Integrationen ergänzt und das minimale Read/Write-State-Modell klar dokumentiert."
+      },
+      "0.2.0": {
+        "en": "Added automatic wallbox discovery with UDP plus local subnet scan fallback, Admin search/select support, runtime rediscovery after DHCP changes, and full admin i18n support.",
+        "de": "Automatische Wallbox-Suche mit UDP plus lokalem Subnetzscan-Fallback, Admin-Suche/Auswahl, Laufzeit-Neusuche nach DHCP-Wechseln und vollständige Admin-i18n-Unterstützung ergänzt."
       }
     },
     "titleLang": {
@@ -47,7 +51,8 @@
         "admin": ">=7.7.22"
       }
     ],
-    "platform": "Javascript/Node.js"
+    "platform": "Javascript/Node.js",
+    "messagebox": true
   },
   "protectedNative": [
     "cloudPassword"
@@ -73,7 +78,8 @@
     "commandDebounceMs": 1000,
     "commandMinGapMs": 1500,
     "localTimeoutMs": 5000,
-    "failoverThreshold": 3
+    "failoverThreshold": 3,
+    "discoverySummary": ""
   },
   "objects": [],
   "instanceObjects": [
@@ -81,7 +87,10 @@
       "_id": "info",
       "type": "channel",
       "common": {
-        "name": "Information"
+        "name": {
+          "en": "Information",
+          "de": "Informationen"
+        }
       },
       "native": {}
     },
@@ -89,7 +98,10 @@
       "_id": "info.connection",
       "type": "state",
       "common": {
-        "name": "Connection to charger or cloud",
+        "name": {
+          "en": "Connection to charger or cloud",
+          "de": "Verbindung zur Wallbox oder Cloud"
+        },
         "type": "boolean",
         "role": "indicator.connected",
         "read": true,
@@ -102,7 +114,10 @@
       "_id": "info.transportConfigured",
       "type": "state",
       "common": {
-        "name": "Configured transport",
+        "name": {
+          "en": "Configured transport",
+          "de": "Konfigurierter Transport"
+        },
         "type": "string",
         "role": "text",
         "read": true,
@@ -114,7 +129,10 @@
       "_id": "info.transportActive",
       "type": "state",
       "common": {
-        "name": "Active transport",
+        "name": {
+          "en": "Active transport",
+          "de": "Aktiver Transport"
+        },
         "type": "string",
         "role": "text",
         "read": true,
@@ -126,7 +144,10 @@
       "_id": "info.lastError",
       "type": "state",
       "common": {
-        "name": "Last error",
+        "name": {
+          "en": "Last error",
+          "de": "Letzter Fehler"
+        },
         "type": "string",
         "role": "text",
         "read": true,
@@ -138,7 +159,10 @@
       "_id": "info.lastPoll",
       "type": "state",
       "common": {
-        "name": "Last successful poll",
+        "name": {
+          "en": "Last successful poll",
+          "de": "Letzte erfolgreiche Abfrage"
+        },
         "type": "number",
         "role": "date",
         "read": true,

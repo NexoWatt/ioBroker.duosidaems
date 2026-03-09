@@ -76,9 +76,12 @@ class Duosidaems extends utils.Adapter {
     this.lastWriteAt = 0;
     this.consecutivePollFailures = 0;
     this.transportSwitchCount = 0;
+    this.discoveryInProgress = null;
+    this.lastDiscoveryAttempt = 0;
 
     this.on('ready', this.onReady.bind(this));
     this.on('stateChange', this.onStateChange.bind(this));
+    this.on('message', this.onMessage.bind(this));
     this.on('unload', this.onUnload.bind(this));
   }
 
@@ -170,53 +173,160 @@ class Duosidaems extends utils.Adapter {
     }
   }
 
-  async resolveLocalEndpoint() {
-    const configuredHost = String(this.config.host || '').trim();
-    const configuredDeviceId = String(this.config.localDeviceId || '').trim();
+  getDiscoveryOptions(overrides = {}) {
+    const configuredTimeoutSec = asInteger(this.config.discoveryTimeoutSec) || 4;
+    const timeoutSec = asInteger(overrides.discoveryTimeoutSec) || configuredTimeoutSec;
+    const timeoutMs = asInteger(overrides.timeoutMs) || timeoutSec * 1000;
+    const interfaceAddress = String(
+      overrides.discoveryInterface
+      || overrides.interfaceAddress
+      || this.config.discoveryInterface
+      || '0.0.0.0',
+    ).trim() || '0.0.0.0';
+    const port = asInteger(overrides.port) || asInteger(this.config.port) || 9988;
+    const localTimeoutMs = asInteger(this.config.localTimeoutMs) || 5000;
 
-    if (configuredHost) {
+    return {
+      timeoutMs,
+      interfaceAddress,
+      includeDeviceId: overrides.includeDeviceId !== false,
+      port,
+      logger: this.log,
+      subnetFallback: overrides.subnetFallback !== false,
+      subnetTimeoutMs: asInteger(overrides.subnetTimeoutMs) || Math.min(localTimeoutMs, 1500),
+      subnetConcurrency: asInteger(overrides.subnetConcurrency) || 32,
+      subnetMaxHosts: asInteger(overrides.subnetMaxHosts) || 256,
+    };
+  }
+
+  async runDiscovery(reason = 'discovery', overrides = {}) {
+    if (this.discoveryInProgress) {
+      return this.discoveryInProgress;
+    }
+
+    const options = this.getDiscoveryOptions(overrides);
+    const isManual = String(reason).startsWith('manual');
+    const logMethod = isManual ? 'info' : 'debug';
+
+    const promise = (async () => {
+      this.lastDiscoveryAttempt = Date.now();
+      this.log[logMethod](`${reason}: starting local charger discovery`);
+      const discovered = await discoverChargers(options);
+      this.log[logMethod](`${reason}: discovery returned ${discovered.length} charger(s)`);
+      return discovered;
+    })();
+
+    const finalPromise = promise.finally(() => {
+      if (this.discoveryInProgress === finalPromise) {
+        this.discoveryInProgress = null;
+      }
+    });
+
+    this.discoveryInProgress = finalPromise;
+    return finalPromise;
+  }
+
+  selectDiscoveryCandidate(devices, preferredDeviceId = '', preferredHost = '') {
+    if (!devices.length) {
+      return null;
+    }
+
+    if (preferredDeviceId) {
+      const byDeviceId = devices.find(device => String(device.deviceId || '') === preferredDeviceId);
+      if (byDeviceId) {
+        return byDeviceId;
+      }
+    }
+
+    if (preferredHost) {
+      const byHost = devices.find(device => String(device.ip || '') === preferredHost);
+      if (byHost) {
+        return byHost;
+      }
+    }
+
+    return devices[0];
+  }
+
+  formatDiscoveryOptionLabel(device) {
+    const parts = [device.ip];
+    if (device.deviceId) {
+      parts.push(`ID ${device.deviceId}`);
+    }
+    if (device.mac) {
+      parts.push(`MAC ${device.mac}`);
+    }
+    if (device.type) {
+      parts.push(device.type);
+    }
+    if (device.firmware) {
+      parts.push(`FW ${device.firmware}`);
+    }
+    return parts.join(' | ');
+  }
+
+  buildDiscoverySummary(devices, selected = null) {
+    if (!devices.length) {
+      return 'No wallboxes found via UDP discovery or subnet scan.';
+    }
+
+    const lines = [`Found ${devices.length} wallbox(es):`];
+    for (const device of devices) {
+      const marker = selected && selected.ip === device.ip ? '*' : '-';
+      lines.push(`${marker} ${this.formatDiscoveryOptionLabel(device)}`);
+    }
+
+    if (selected) {
+      lines.push('');
+      lines.push(`Selected host: ${selected.ip}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  async resolveLocalEndpoint(options = {}) {
+    const forceDiscovery = options.forceDiscovery === true;
+    const configuredHost = String(options.preferredHost || options.host || this.config.host || '').trim();
+    const configuredDeviceId = String(options.preferredDeviceId || options.deviceId || this.config.localDeviceId || '').trim();
+
+    if (configuredHost && !forceDiscovery) {
       return {
         host: configuredHost,
         deviceId: configuredDeviceId || null,
       };
     }
 
-    if (!this.config.discoveryOnStart) {
+    if (!this.config.discoveryOnStart && !forceDiscovery) {
       throw new Error('Local transport requires host/IP or startup discovery');
     }
 
-    const discovered = await discoverChargers({
-      timeoutMs: (asInteger(this.config.discoveryTimeoutSec) || 4) * 1000,
-      interfaceAddress: String(this.config.discoveryInterface || '0.0.0.0').trim() || '0.0.0.0',
-      includeDeviceId: true,
-      port: asInteger(this.config.port) || 9988,
-      logger: this.log,
-    });
+    const discovered = await this.runDiscovery(options.reason || 'startup-discovery', options);
 
     if (!discovered.length) {
-      throw new Error('No Duosida charger found via local UDP discovery');
+      throw new Error('No Duosida charger found via local discovery or subnet scan');
     }
 
-    let selected = null;
-    if (configuredDeviceId) {
-      selected = discovered.find(device => String(device.deviceId || '') === configuredDeviceId) || null;
-    }
+    const selected = this.selectDiscoveryCandidate(
+      discovered,
+      configuredDeviceId,
+      forceDiscovery ? '' : configuredHost,
+    );
 
     if (!selected) {
-      selected = discovered[0];
-      if (discovered.length > 1) {
-        this.log.warn(`Local discovery found ${discovered.length} chargers. Using the first one: ${selected.ip}`);
-      }
+      throw new Error('No Duosida charger could be selected from discovery results');
+    }
+
+    if (!configuredDeviceId && !configuredHost && discovered.length > 1) {
+      this.log.warn(`Local discovery found ${discovered.length} chargers. Using the first one: ${selected.ip}`);
     }
 
     return {
       host: selected.ip,
-      deviceId: selected.deviceId || null,
+      deviceId: selected.deviceId || configuredDeviceId || null,
     };
   }
 
-  async activateLocalTransport() {
-    const endpoint = await this.resolveLocalEndpoint();
+  async buildLocalClient(endpoint) {
     const localClient = new LocalClient({
       host: endpoint.host,
       port: asInteger(this.config.port) || 9988,
@@ -241,12 +351,88 @@ class Duosidaems extends utils.Adapter {
       }
     }
 
+    return localClient;
+  }
+
+  async connectLocalEndpoint(endpoint) {
+    const localClient = await this.buildLocalClient(endpoint);
     const snapshot = await localClient.readStatus();
-    this.localClient = localClient;
+    return {
+      localClient,
+      snapshot,
+    };
+  }
+
+  async activateLocalTransport(options = {}) {
+    const forceDiscovery = options.forceDiscovery === true;
+    const configuredHost = String(options.host || this.config.host || '').trim();
+    const configuredDeviceId = String(options.deviceId || this.config.localDeviceId || '').trim();
+
+    let endpoint = await this.resolveLocalEndpoint({
+      ...options,
+      preferredHost: configuredHost,
+      preferredDeviceId: configuredDeviceId,
+      forceDiscovery,
+    });
+
+    let connection;
+    try {
+      connection = await this.connectLocalEndpoint(endpoint);
+    } catch (error) {
+      if (!forceDiscovery && configuredHost && this.config.discoveryOnStart !== false) {
+        this.log.warn(`Configured local host ${configuredHost} failed (${error.message}). Trying automatic rediscovery.`);
+        endpoint = await this.resolveLocalEndpoint({
+          ...options,
+          preferredHost: '',
+          preferredDeviceId: configuredDeviceId,
+          forceDiscovery: true,
+          reason: 'startup-rediscovery',
+        });
+        connection = await this.connectLocalEndpoint(endpoint);
+      } else {
+        throw error;
+      }
+    }
+
+    this.localClient = connection.localClient;
     this.cloudClient = null;
     this.currentCloudDevice = null;
     await this.setActiveTransport('local');
-    return snapshot;
+    return connection.snapshot;
+  }
+
+  canAttemptRediscovery() {
+    if (this.activeTransport !== 'local') {
+      return false;
+    }
+    if (this.config.discoveryOnStart === false) {
+      return false;
+    }
+    if (this.discoveryInProgress) {
+      return false;
+    }
+    return Date.now() - this.lastDiscoveryAttempt >= 60_000;
+  }
+
+  async tryRediscoverAfterPollFailure() {
+    if (!this.canAttemptRediscovery()) {
+      return false;
+    }
+
+    try {
+      this.log.warn('Local polling failed. Trying automatic wallbox rediscovery.');
+      const snapshot = await this.enqueueSerialized(
+        'rediscover-local',
+        () => this.activateLocalTransport({ forceDiscovery: true, reason: 'poll-rediscovery' }),
+        false,
+      );
+      this.consecutivePollFailures = 0;
+      await this.applySnapshot(snapshot);
+      return true;
+    } catch (error) {
+      this.log.warn(`Automatic wallbox rediscovery failed: ${error.message}`);
+      return false;
+    }
   }
 
   async resolveCloudSelection(cloudClient) {
@@ -369,6 +555,13 @@ class Duosidaems extends utils.Adapter {
     } catch (error) {
       this.consecutivePollFailures += 1;
       await this.handleError(error, 'poll');
+
+      if (this.activeTransport === 'local') {
+        const rediscovered = await this.tryRediscoverAfterPollFailure();
+        if (rediscovered) {
+          return;
+        }
+      }
 
       if (
         normalizeTransport(this.config.transport) === 'auto'
@@ -500,6 +693,73 @@ class Duosidaems extends utils.Adapter {
     await this.setStateSafe('info.connection', false, true);
     await this.setStateSafe('charger.status.online', false, true);
     await this.setStateSafe('info.lastError', `[${phase}] ${message}`, true);
+  }
+
+  parseDiscoveryRequest(message = {}) {
+    return {
+      host: String(message.host || '').trim(),
+      localDeviceId: String(message.localDeviceId || '').trim(),
+      port: asInteger(message.port) || asInteger(this.config.port) || 9988,
+      discoveryInterface: String(message.discoveryInterface || this.config.discoveryInterface || '0.0.0.0').trim() || '0.0.0.0',
+      discoveryTimeoutSec: asInteger(message.discoveryTimeoutSec) || asInteger(this.config.discoveryTimeoutSec) || 4,
+    };
+  }
+
+  replyToMessage(obj, payload) {
+    if (obj && obj.callback) {
+      this.sendTo(obj.from, obj.command, payload, obj.callback);
+    }
+  }
+
+  async onMessage(obj) {
+    if (!obj || !obj.command) {
+      return;
+    }
+
+    try {
+      if (obj.command === 'discoverHosts') {
+        const request = this.parseDiscoveryRequest(obj.message);
+        const devices = await this.runDiscovery('manual-admin-select', request);
+        const payload = devices.map(device => ({
+          label: this.formatDiscoveryOptionLabel(device),
+          value: device.ip,
+        }));
+        if (!payload.length && request.host) {
+          payload.push({
+            label: request.host,
+            value: request.host,
+          });
+        }
+        this.replyToMessage(obj, payload);
+        return;
+      }
+
+      if (obj.command === 'discoverAndFill') {
+        const request = this.parseDiscoveryRequest(obj.message);
+        const devices = await this.runDiscovery('manual-admin-fill', request);
+        const selected = this.selectDiscoveryCandidate(devices, request.localDeviceId, request.host);
+        const native = {
+          discoverySummary: this.buildDiscoverySummary(devices, selected),
+        };
+
+        if (selected) {
+          native.host = selected.ip;
+          if (selected.deviceId) {
+            native.localDeviceId = selected.deviceId;
+          }
+        }
+
+        this.replyToMessage(obj, {
+          native,
+          saveConfig: true,
+        });
+      }
+    } catch (error) {
+      this.log.warn(`message ${obj.command}: ${error.message}`);
+      this.replyToMessage(obj, {
+        error: error.message,
+      });
+    }
   }
 
   async onStateChange(id, state) {

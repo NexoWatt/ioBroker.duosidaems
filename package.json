@@ -1,7 +1,7 @@
 {
   "name": "iobroker.duosidaems",
-  "version": "0.1.1",
-  "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with local TCP and cloud fallback",
+  "version": "0.2.0",
+  "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with automatic LAN discovery, local TCP and cloud fallback",
   "author": "Dominique",
   "license": "MIT",
   "main": "main.js",

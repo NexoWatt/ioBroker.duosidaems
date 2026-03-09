@@ -4,8 +4,10 @@ Custom ioBroker adapter for older **Duosida / SmartCharge / DS Charge** wallboxe
 It supports:
 
 - **local TCP control** for SmartCharge-style devices (`TCP 9988`, UDP discovery `48890 → 48899`)
+- **automatic LAN discovery** with UDP broadcast and TCP subnet fallback if DHCP-assigned IPs are unknown
 - **X-Cheng cloud control** for older app-bound variants
 - **auto mode** (`local` first, then cloud fallback)
+- **Admin search + host selection** and translated Admin UI (German/English via system language)
 - **EMS-friendly writable states** for current control, start/stop and basic charger settings
 
 > **Quick German note**
@@ -32,6 +34,9 @@ The main target is exactly the use case you described:
 ### Local TCP transport
 
 - startup discovery via UDP broadcast
+- automatic subnet scan fallback if UDP discovery does not answer
+- automatic rediscovery if a configured local IP becomes invalid after DHCP changes
+- Admin search button plus selectable discovered hosts in the adapter config
 - direct TCP status polling
 - read:
   - state / state code
@@ -86,11 +91,11 @@ The main target is exactly the use case you described:
    On the local TCP protocol, config items like max current or direct work mode are generally **not returned back by the charger**.  
    Because of that, the adapter mirrors the **last written value** in `charger.control.*` states so your EMS can keep a stable desired setpoint.
 
-3. **Auto mode is startup-biased**
+3. **Auto mode is still fallback-oriented**
 
    `auto` tries local first.  
-   If local polling fails repeatedly, it can switch to cloud.  
-   It does **not** automatically switch back to local until restart.
+   If local polling fails, the adapter now tries an automatic local rediscovery before switching to cloud.  
+   If local keeps failing repeatedly, it can still switch to cloud.
 
 ## Installation
 
@@ -108,6 +113,8 @@ iobroker url <your-git-repository-url>
 
 Then create an instance and configure transport + credentials / local host.
 
+If you do not know the charger IP, leave `host` empty and keep discovery enabled. The adapter will try to find the wallbox automatically on startup. In Admin you can also use the **Search wallboxes now** button or the host dropdown after the instance is running.
+
 ## Configuration
 
 ### Local only
@@ -115,9 +122,9 @@ Then create an instance and configure transport + credentials / local host.
 Use this when your charger responds on the LAN:
 
 - `transport = local`
-- enter `host` / IP
+- enter `host` / IP or select it from the discovery dropdown
 - optionally enter the 19-digit `localDeviceId`
-- leave discovery enabled if you want auto-detection
+- leave discovery enabled if you want auto-detection and runtime rediscovery on DHCP changes
 
 ### Cloud only
 

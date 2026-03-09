@@ -51,6 +51,7 @@ test('discovery response parser', () => {
     firmware: '1.0.0',
     deviceId: null,
     raw: '192.168.1.50,AA:BB:CC:DD:EE:FF,smart_wifi,1.0.0',
+    source: 'udp-broadcast',
   });
 });
 

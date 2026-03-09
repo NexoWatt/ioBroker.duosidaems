@@ -1,6 +1,6 @@
 {
   "type": "tabs",
-  "i18n": false,
+  "i18n": true,
   "items": {
     "main": {
       "type": "panel",
@@ -47,7 +47,8 @@
         },
         "discoveryOnStart": {
           "type": "checkbox",
-          "label": "Run local UDP discovery on startup",
+          "label": "Run local discovery on startup",
+          "help": "If no host is configured, the adapter first tries UDP broadcast and then a TCP subnet scan.",
           "xs": 12,
           "sm": 6,
           "md": 4,
@@ -78,17 +79,68 @@
       "items": {
         "_localInfo": {
           "type": "staticText",
-          "text": "Older SmartCharge models can usually be found via UDP broadcast (48890 → 48899) and controlled locally on TCP port 9988."
+          "text": "Older SmartCharge models can usually be found via UDP broadcast (48890 → 48899) and controlled locally on TCP port 9988. If UDP does not answer, the adapter also scans the local subnet for TCP 9988."
         },
-        "host": {
+        "_manualInfo": {
+          "type": "staticText",
+          "text": "Automatic discovery works on adapter start if no host is configured. For a manual search in Admin, save and start the instance once, then use the search button or the host dropdown."
+        },
+        "_discoverNow": {
           "newLine": true,
-          "type": "text",
-          "label": "Wallbox host / IP",
-          "help": "Leave empty if you want startup discovery to resolve it",
+          "type": "sendTo",
+          "label": "Search wallboxes now",
+          "command": "discoverAndFill",
+          "variant": "outlined",
+          "icon": "search",
+          "showProcess": true,
+          "useNative": true,
+          "jsonData": "{\"host\":\"${data.host}\",\"localDeviceId\":\"${data.localDeviceId}\",\"port\":\"${data.port}\",\"discoveryInterface\":\"${data.discoveryInterface}\",\"discoveryTimeoutSec\":\"${data.discoveryTimeoutSec}\"}",
           "xs": 12,
           "sm": 12,
           "md": 6,
           "lg": 6
+        },
+        "discoverySummary": {
+          "newLine": true,
+          "type": "text",
+          "label": "Last discovery result",
+          "readOnly": true,
+          "copyToClipboard": true,
+          "minRows": 4,
+          "maxRows": 10,
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12
+        },
+        "host": {
+          "newLine": true,
+          "type": "selectSendTo",
+          "label": "Wallbox host / IP",
+          "help": "Select a discovered charger or enter the host manually. If the IP changes, the adapter can rediscover the wallbox automatically.",
+          "command": "discoverHosts",
+          "manual": true,
+          "noTranslation": true,
+          "jsonData": "{\"host\":\"${data.host}\",\"localDeviceId\":\"${data.localDeviceId}\",\"port\":\"${data.port}\",\"discoveryInterface\":\"${data.discoveryInterface}\",\"discoveryTimeoutSec\":\"${data.discoveryTimeoutSec}\"}",
+          "alsoDependsOn": [
+            "localDeviceId",
+            "port",
+            "discoveryInterface",
+            "discoveryTimeoutSec"
+          ],
+          "xs": 12,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        },
+        "localDeviceId": {
+          "type": "text",
+          "label": "Local device ID (optional)",
+          "help": "19-digit device ID; leave empty if you want the adapter to read it from the wallbox.",
+          "xs": 12,
+          "sm": 6,
+          "md": 3,
+          "lg": 3
         },
         "port": {
           "type": "number",
@@ -101,20 +153,11 @@
           "md": 3,
           "lg": 3
         },
-        "localDeviceId": {
-          "type": "text",
-          "label": "Local device ID (optional)",
-          "help": "19-digit device ID; if empty the adapter tries to read it from the wallbox",
-          "xs": 12,
-          "sm": 6,
-          "md": 3,
-          "lg": 3
-        },
         "discoveryInterface": {
           "newLine": true,
           "type": "text",
           "label": "Discovery bind address",
-          "help": "Usually 0.0.0.0. Change only if you need a specific interface.",
+          "help": "Usually 0.0.0.0. Change only if you need to bind discovery to a specific IPv4 address.",
           "xs": 12,
           "sm": 6,
           "md": 6,
@@ -123,6 +166,7 @@
         "discoveryTimeoutSec": {
           "type": "number",
           "label": "Discovery timeout (s)",
+          "help": "Used for UDP discovery and as the base timeout before the subnet fallback starts.",
           "min": 1,
           "max": 30,
           "step": 1,
@@ -182,7 +226,7 @@
           "newLine": true,
           "type": "text",
           "label": "Cloud device ID (optional)",
-          "help": "Leave empty to auto-select the first cloud device",
+          "help": "Leave empty to auto-select the first cloud device.",
           "xs": 12,
           "sm": 12,
           "md": 6,
@@ -224,7 +268,7 @@
         "failoverThreshold": {
           "type": "number",
           "label": "Auto failover threshold",
-          "help": "Number of consecutive local poll failures before auto mode switches to cloud",
+          "help": "Number of consecutive local poll failures before auto mode switches to cloud.",
           "min": 1,
           "max": 10,
           "step": 1,
