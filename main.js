@@ -6,6 +6,7 @@ const { getObjectDefinitions } = require('./lib/objectDefinitions');
 const { LocalClient, getDeviceIdViaTcp } = require('./lib/localClient');
 const { discoverChargers } = require('./lib/discovery');
 const { CloudClient } = require('./lib/cloudClient');
+const { cleanSnapshot } = require('./lib/snapshotTools');
 
 const CONTROL_STATE_IDS = [
   'charger.control.maxCurrent',
@@ -78,6 +79,9 @@ class Duosidaems extends utils.Adapter {
     this.transportSwitchCount = 0;
     this.discoveryInProgress = null;
     this.lastDiscoveryAttempt = 0;
+    this.lastSnapshot = null;
+    this.lastSnapshotAt = 0;
+    this.lowCurrentStopRequested = false;
 
     this.on('ready', this.onReady.bind(this));
     this.on('stateChange', this.onStateChange.bind(this));
@@ -521,6 +525,25 @@ class Duosidaems extends utils.Adapter {
     }
   }
 
+
+  hasFreshSnapshot(maxAgeMs) {
+    return Boolean(this.lastSnapshotAt && (Date.now() - this.lastSnapshotAt) <= maxAgeMs);
+  }
+
+  isTransientLocalPollError(error) {
+    if (this.activeTransport !== 'local') {
+      return false;
+    }
+
+    const message = String(error && error.message ? error.message : error || '').toLowerCase();
+    return (
+      message.includes('socket closed before data was received')
+      || message.includes('socket already closed')
+      || message.includes('no local status frame received')
+      || message.includes('read timeout after')
+    );
+  }
+
   enqueueSerialized(label, task, isWrite = false) {
     const run = async () => {
       if (isWrite) {
@@ -553,28 +576,35 @@ class Duosidaems extends utils.Adapter {
         await this.applySnapshot(snapshot);
       }
     } catch (error) {
-      this.consecutivePollFailures += 1;
-      await this.handleError(error, 'poll');
+      const pollIntervalMs = (asInteger(this.config.pollIntervalSec) || 10) * 1000;
+      const transientWindowMs = Math.max(60_000, pollIntervalMs * 6);
 
-      if (this.activeTransport === 'local') {
-        const rediscovered = await this.tryRediscoverAfterPollFailure();
-        if (rediscovered) {
-          return;
+      if (this.isTransientLocalPollError(error) && this.hasFreshSnapshot(transientWindowMs)) {
+        this.log.debug(`poll: transient local read miss (${error.message}); keeping last good values`);
+      } else {
+        this.consecutivePollFailures += 1;
+        await this.handleError(error, 'poll');
+
+        if (this.activeTransport === 'local') {
+          const rediscovered = await this.tryRediscoverAfterPollFailure();
+          if (rediscovered) {
+            return;
+          }
         }
-      }
 
-      if (
-        normalizeTransport(this.config.transport) === 'auto'
-        && this.activeTransport === 'local'
-        && this.consecutivePollFailures >= (asInteger(this.config.failoverThreshold) || 3)
-      ) {
-        try {
-          this.log.warn('Auto failover: switching from local to cloud');
-          const snapshot = await this.enqueueSerialized('failover-cloud', () => this.activateCloudTransport(), false);
-          this.consecutivePollFailures = 0;
-          await this.applySnapshot(snapshot);
-        } catch (failoverError) {
-          await this.handleError(failoverError, 'failover');
+        if (
+          normalizeTransport(this.config.transport) === 'auto'
+          && this.activeTransport === 'local'
+          && this.consecutivePollFailures >= (asInteger(this.config.failoverThreshold) || 3)
+        ) {
+          try {
+            this.log.warn('Auto failover: switching from local to cloud');
+            const snapshot = await this.enqueueSerialized('failover-cloud', () => this.activateCloudTransport(), false);
+            this.consecutivePollFailures = 0;
+            await this.applySnapshot(snapshot);
+          } catch (failoverError) {
+            await this.handleError(failoverError, 'failover');
+          }
         }
       }
     } finally {
@@ -610,6 +640,19 @@ class Duosidaems extends utils.Adapter {
   }
 
   async applySnapshot(snapshot) {
+    snapshot = cleanSnapshot(snapshot, {
+      phaseCount: this.config.phaseCount,
+      shadowMaxCurrent: this.commandShadow.get('charger.control.maxCurrent'),
+      nowMs: Date.now(),
+    });
+
+    this.lastSnapshot = snapshot;
+    this.lastSnapshotAt = Date.now();
+    const shadowMaxCurrent = asNumber(this.commandShadow.get('charger.control.maxCurrent'));
+    if (snapshot.isCharging && (shadowMaxCurrent === null || shadowMaxCurrent >= 6)) {
+      this.lowCurrentStopRequested = false;
+    }
+
     const online = snapshot.reportedOnline === null || snapshot.reportedOnline === undefined
       ? true
       : Boolean(snapshot.reportedOnline);
@@ -889,25 +932,44 @@ class Duosidaems extends utils.Adapter {
   }
 
   async setMaxCurrent(value) {
-    if (value === null || value === undefined) {
+    const numeric = asInteger(value);
+    if (numeric === null) {
       throw new Error('Max current cannot be empty');
+    }
+    if (numeric < 0 || numeric > 32) {
+      throw new Error('Max current must be between 0 and 32 A');
+    }
+
+    if (numeric < 6) {
+      this.lowCurrentStopRequested = true;
+      await this.stopCharging('low-current');
+      return true;
     }
 
     if (this.activeTransport === 'local') {
       if (!this.localClient) {
         throw new Error('Local client is not initialized');
       }
-      return this.localClient.setMaxCurrent(value);
-    }
-
-    if (this.activeTransport === 'cloud') {
+      await this.localClient.setMaxCurrent(numeric);
+    } else if (this.activeTransport === 'cloud') {
       if (!this.cloudClient || !this.currentCloudDevice) {
         throw new Error('Cloud client is not initialized');
       }
-      return this.cloudClient.setMaxCurrent(String(this.currentCloudDevice.id), value);
+      await this.cloudClient.setMaxCurrent(String(this.currentCloudDevice.id), numeric);
+    } else {
+      throw new Error('No active transport for setMaxCurrent');
     }
 
-    throw new Error('No active transport for setMaxCurrent');
+    if (this.lowCurrentStopRequested) {
+      try {
+        await this.startCharging('low-current-resume');
+        this.lowCurrentStopRequested = false;
+      } catch (error) {
+        this.log.warn(`maxCurrent resume auto-start failed: ${error.message}`);
+      }
+    }
+
+    return true;
   }
 
   async setDirectWorkMode(value) {
@@ -998,7 +1060,11 @@ class Duosidaems extends utils.Adapter {
     throw new Error('No active transport for setLedBrightness');
   }
 
-  async startCharging() {
+  async startCharging(reason = 'manual') {
+    if (reason !== 'low-current-resume') {
+      this.lowCurrentStopRequested = false;
+    }
+
     if (this.activeTransport === 'local') {
       if (!this.localClient) {
         throw new Error('Local client is not initialized');
@@ -1016,7 +1082,11 @@ class Duosidaems extends utils.Adapter {
     throw new Error('No active transport for startCharging');
   }
 
-  async stopCharging() {
+  async stopCharging(reason = 'manual') {
+    if (reason !== 'low-current') {
+      this.lowCurrentStopRequested = false;
+    }
+
     if (this.activeTransport === 'local') {
       if (!this.localClient) {
         throw new Error('Local client is not initialized');

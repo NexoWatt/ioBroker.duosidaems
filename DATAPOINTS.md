@@ -68,7 +68,7 @@ Wenn ihr die Wallbox im EMS nur sauber freigeben, sperren und in A regeln wollt,
 | `charger.status.current` | number | Strom L1 in A | lokal + cloud |
 | `charger.status.currentL2` | number | Strom L2 in A | meist cloud / 3-phasig |
 | `charger.status.currentL3` | number | Strom L3 in A | meist cloud / 3-phasig |
-| `charger.status.power` | number | Ladeleistung in W | lokal + cloud |
+| `charger.status.power` | number | Ladeleistung in W; bei älteren lokalen Boxen bei Bedarf aus Spannung/Strom berechnet | lokal + cloud |
 | `charger.status.temperature` | number | Stationstemperatur in °C | lokal + cloud |
 | `charger.status.temperatureInternal` | number | interne Temperatur in °C | eher lokal |
 | `charger.status.cpVoltage` | number | CP-Spannung | eher lokal |
@@ -88,7 +88,7 @@ Wenn ihr die Wallbox im EMS nur sauber freigeben, sperren und in A regeln wollt,
 | `charger.control.refresh` | button/boolean | sofortiges Neulesen auslösen | `true` triggern |
 | `charger.control.start` | button/boolean | Ladung starten | `true` triggern |
 | `charger.control.stop` | button/boolean | Ladung stoppen | `true` triggern |
-| `charger.control.maxCurrent` | number | Soll-Maximalstrom | Integer `6..32` A |
+| `charger.control.maxCurrent` | number | Soll-Maximalstrom / Stop-Semantik | Integer `0..32` A |
 | `charger.control.directWorkMode` | boolean | Plug-and-charge / Direktmodus | `true/false` |
 | `charger.control.levelDetection` | boolean | CP -12V / Level-Detection | `true/false` |
 | `charger.control.stopOnDisconnect` | boolean | Stop bei Fahrzeugtrennung | `true/false` |
@@ -125,7 +125,9 @@ setState('duosidaems.0.charger.control.maxCurrent', 10);
 Hinweise:
 
 - Ganzzahl in Ampere
-- gültig: `6` bis `32`
+- gültig: `0` bis `32`
+- `0..5 A` senden **keinen** ungültigen Strom an die Wallbox, sondern lösen stattdessen einen **Stop-Befehl** aus
+- ab `6 A` setzt der Adapter wieder den Strom normal; nach einem Stop durch Untergrenze versucht der Adapter beim nächsten Wert `>= 6 A` die Ladung wieder zu starten
 - bei lokalem Protokoll wird der zuletzt gesetzte Wert ggf. **gespiegelt**, auch wenn die Wallbox ihn nicht aktiv zurückmeldet
 
 ### Erweiterte Schaltpunkte

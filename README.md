@@ -9,6 +9,7 @@ It supports:
 - **auto mode** (`local` first, then cloud fallback)
 - **Admin search + host selection** and translated Admin UI (German/English via system language)
 - **EMS-friendly writable states** for current control, start/stop and basic charger settings
+- **cleaned telemetry** with rounded values, derived power for older local boxes and graceful handling of transient local socket closes
 
 > **Quick German note**
 >
@@ -51,7 +52,7 @@ The main target is exactly the use case you described:
 - write:
   - start charging
   - stop charging
-  - max current
+  - max current (`0..5 A` = stop charging, `6..32 A` = normal setpoint)
   - direct work mode
   - level detection
   - stop on disconnect
@@ -74,7 +75,7 @@ The main target is exactly the use case you described:
 - write:
   - start charging
   - stop charging
-  - max current
+  - max current (`0..5 A` = stop charging, `6..32 A` = normal setpoint)
   - direct work mode
   - level detection
   - generic config changes through `changeCpConfig`
@@ -143,6 +144,12 @@ Best default for mixed / uncertain setups:
 - provide local host if known
 - keep cloud credentials as fallback
 
+### Derived power / phase count
+
+For older local SmartCharge devices the raw power field is often unreliable.
+The adapter therefore derives `charger.status.power` from voltage/current and the configured `phaseCount` when needed.
+Default is `3` for 11/22 kW boxes. Set it to `1` for single-phase 7.2 kW chargers.
+
 ## State layout
 
 ### Information
@@ -195,7 +202,7 @@ Best default for mixed / uncertain setups:
 - `charger.control.refresh` (button)
 - `charger.control.start` (button)
 - `charger.control.stop` (button)
-- `charger.control.maxCurrent` (number, amps)
+- `charger.control.maxCurrent` (number, amps; `0..5 A` = stop, `6..32 A` = normal current limit)
 - `charger.control.directWorkMode` (boolean)
 - `charger.control.levelDetection` (boolean)
 - `charger.control.stopOnDisconnect` (boolean)
@@ -213,7 +220,9 @@ The intended EMS control loop is simple:
 Example:
 
 ```javascript
-setState('duosidaems.0.charger.control.maxCurrent', 10);
+setState('duosidaems.0.charger.control.maxCurrent', 0);  // stop charging
+setState('duosidaems.0.charger.control.maxCurrent', 6);  // resume with minimum current
+setState('duosidaems.0.charger.control.maxCurrent', 10); // normal charging
 ```
 
 Start charging:

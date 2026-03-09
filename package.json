@@ -1,7 +1,7 @@
 {
   "name": "iobroker.duosidaems",
-  "version": "0.2.0",
-  "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with automatic LAN discovery, local TCP and cloud fallback",
+  "version": "0.2.1",
+  "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with automatic LAN discovery, cleaned telemetry, local TCP and cloud fallback",
   "author": "Dominique",
   "license": "MIT",
   "main": "main.js",
@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check:syntax": "node --check main.js && node --check lib/status.js && node --check lib/protobuf.js && node --check lib/localClient.js && node --check lib/discovery.js && node --check lib/cloudClient.js && node --check lib/objectDefinitions.js"
+    "check:syntax": "node --check main.js && node --check lib/status.js && node --check lib/protobuf.js && node --check lib/localClient.js && node --check lib/discovery.js && node --check lib/cloudClient.js && node --check lib/objectDefinitions.js && node --check lib/snapshotTools.js"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^3.3.2"

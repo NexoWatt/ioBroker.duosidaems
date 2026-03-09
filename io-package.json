@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "duosidaems",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "news": {
       "0.1.0": {
         "en": "Initial custom release: local TCP transport, X-Cheng cloud transport, auto mode, EMS-friendly control states.",
@@ -14,6 +14,10 @@
       "0.2.0": {
         "en": "Added automatic wallbox discovery with UDP plus local subnet scan fallback, Admin search/select support, runtime rediscovery after DHCP changes, and full admin i18n support.",
         "de": "Automatische Wallbox-Suche mit UDP plus lokalem Subnetzscan-Fallback, Admin-Suche/Auswahl, Laufzeit-Neusuche nach DHCP-Wechseln und vollständige Admin-i18n-Unterstützung ergänzt."
+      },
+      "0.2.1": {
+        "en": "Stabilized local polling for older SmartCharge boxes, kept online status on transient socket closes, rounded measured values, derived power from voltage/current with configurable phase count, and allowed 0-5 A as stop semantics for EMS control.",
+        "de": "Lokales Polling für ältere SmartCharge-Boxen stabilisiert, Online-Status bei kurzen Socket-Abbrüchen beibehalten, Messwerte gerundet, Leistung aus Spannung/Strom mit konfigurierbarer Phasenzahl berechnet und 0-5 A als Stopp-Semantik für die EMS-Steuerung ergänzt."
       }
     },
     "titleLang": {
@@ -48,7 +52,7 @@
     ],
     "globalDependencies": [
       {
-        "admin": ">=7.7.22"
+        "admin": ">=7.7.20"
       }
     ],
     "platform": "Javascript/Node.js",
@@ -79,7 +83,8 @@
     "commandMinGapMs": 1500,
     "localTimeoutMs": 5000,
     "failoverThreshold": 3,
-    "discoverySummary": ""
+    "discoverySummary": "",
+    "phaseCount": 3
   },
   "objects": [],
   "instanceObjects": [

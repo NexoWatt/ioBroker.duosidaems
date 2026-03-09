@@ -39,5 +39,8 @@
   "Number of consecutive local poll failures before auto mode switches to cloud.": "Anzahl aufeinanderfolgender lokaler Poll-Fehler, bevor der Auto-Modus auf Cloud umschaltet.",
   "auto": "auto",
   "local": "lokal",
-  "cloud": "cloud"
+  "cloud": "cloud",
+  "Local TCP config values are write-only on the wallbox. The adapter mirrors the last written values in charger.control.* states so your EMS can keep a stable desired setpoint. Values below 6 A trigger a stop command instead of sending an unsupported current to the wallbox.": "Lokale TCP-Konfigurationswerte sind auf der Wallbox nur schreibbar. Der Adapter spiegelt deshalb den zuletzt gesetzten Wert in charger.control.* zurück, damit dein EMS einen stabilen Sollwert behält. Werte unter 6 A senden keinen ungültigen Strom, sondern lösen stattdessen einen Stopp-Befehl aus.",
+  "Charging phases for derived power": "Ladephasen für die berechnete Leistung",
+  "Used when the wallbox reports voltage/current but no reliable power value. Set 1 for 7.2 kW single-phase chargers and 3 for 11/22 kW chargers.": "Wird verwendet, wenn die Wallbox Spannung/Strom meldet, aber keinen verlässlichen Leistungswert liefert. 1 für 7,2-kW-Einphasen-Geräte und 3 für 11/22-kW-Wallboxen setzen."
 }

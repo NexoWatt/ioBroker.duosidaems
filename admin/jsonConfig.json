@@ -240,7 +240,7 @@
       "items": {
         "_advancedInfo": {
           "type": "staticText",
-          "text": "Local TCP config values are write-only on the wallbox. The adapter mirrors the last written values in charger.control.* states so your EMS can keep a stable desired setpoint."
+          "text": "Local TCP config values are write-only on the wallbox. The adapter mirrors the last written values in charger.control.* states so your EMS can keep a stable desired setpoint. Values below 6 A trigger a stop command instead of sending an unsupported current to the wallbox."
         },
         "commandDebounceMs": {
           "newLine": true,
@@ -264,6 +264,25 @@
           "sm": 6,
           "md": 4,
           "lg": 4
+        },
+        "phaseCount": {
+          "type": "select",
+          "label": "Charging phases for derived power",
+          "help": "Used when the wallbox reports voltage/current but no reliable power value. Set 1 for 7.2 kW single-phase chargers and 3 for 11/22 kW chargers.",
+          "xs": 12,
+          "sm": 6,
+          "md": 4,
+          "lg": 4,
+          "options": [
+            {
+              "label": "1",
+              "value": 1
+            },
+            {
+              "label": "3",
+              "value": 3
+            }
+          ]
         },
         "failoverThreshold": {
           "type": "number",
