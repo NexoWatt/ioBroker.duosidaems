@@ -1,6 +1,6 @@
 {
   "name": "iobroker.duosidaems",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "ioBroker adapter for Duosida / SmartCharge / DS Charge wallboxes with automatic LAN discovery, cleaned telemetry, local TCP and cloud fallback",
   "author": "Dominique",
   "license": "MIT",

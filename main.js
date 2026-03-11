@@ -405,7 +405,7 @@ class Duosidaems extends utils.Adapter {
     return connection.snapshot;
   }
 
-  canAttemptRediscovery() {
+  canAttemptRediscovery(minIntervalMs = 60_000) {
     if (this.activeTransport !== 'local') {
       return false;
     }
@@ -415,11 +415,11 @@ class Duosidaems extends utils.Adapter {
     if (this.discoveryInProgress) {
       return false;
     }
-    return Date.now() - this.lastDiscoveryAttempt >= 60_000;
+    return Date.now() - this.lastDiscoveryAttempt >= minIntervalMs;
   }
 
-  async tryRediscoverAfterPollFailure() {
-    if (!this.canAttemptRediscovery()) {
+  async tryRediscoverAfterPollFailure(minIntervalMs = 60_000) {
+    if (!this.canAttemptRediscovery(minIntervalMs)) {
       return false;
     }
 
@@ -541,6 +541,21 @@ class Duosidaems extends utils.Adapter {
       || message.includes('socket already closed')
       || message.includes('no local status frame received')
       || message.includes('read timeout after')
+      || message.includes('connection timeout after')
+      || message.includes('ehostunreach')
+      || message.includes('enetunreach')
+      || message.includes('econnrefused')
+      || message.includes('econnreset')
+    );
+  }
+
+  isNetworkReachabilityError(error) {
+    const message = String(error && error.message ? error.message : error || '').toLowerCase();
+    return (
+      message.includes('ehostunreach')
+      || message.includes('enetunreach')
+      || message.includes('econnrefused')
+      || message.includes('connection timeout after')
     );
   }
 
@@ -578,15 +593,21 @@ class Duosidaems extends utils.Adapter {
     } catch (error) {
       const pollIntervalMs = (asInteger(this.config.pollIntervalSec) || 10) * 1000;
       const transientWindowMs = Math.max(60_000, pollIntervalMs * 6);
+      const isTransientLocalError = this.isTransientLocalPollError(error);
+      const isNetworkReachabilityError = this.isNetworkReachabilityError(error);
 
-      if (this.isTransientLocalPollError(error) && this.hasFreshSnapshot(transientWindowMs)) {
+      if (isTransientLocalError && this.hasFreshSnapshot(transientWindowMs)) {
         this.log.debug(`poll: transient local read miss (${error.message}); keeping last good values`);
+
+        if (isNetworkReachabilityError && this.activeTransport === 'local') {
+          await this.tryRediscoverAfterPollFailure(15_000);
+        }
       } else {
         this.consecutivePollFailures += 1;
         await this.handleError(error, 'poll');
 
         if (this.activeTransport === 'local') {
-          const rediscovered = await this.tryRediscoverAfterPollFailure();
+          const rediscovered = await this.tryRediscoverAfterPollFailure(isNetworkReachabilityError ? 15_000 : 60_000);
           if (rediscovered) {
             return;
           }

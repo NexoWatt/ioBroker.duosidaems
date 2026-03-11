@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "duosidaems",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "news": {
       "0.1.0": {
         "en": "Initial custom release: local TCP transport, X-Cheng cloud transport, auto mode, EMS-friendly control states.",
@@ -18,6 +18,10 @@
       "0.2.1": {
         "en": "Stabilized local polling for older SmartCharge boxes, kept online status on transient socket closes, rounded measured values, derived power from voltage/current with configurable phase count, and allowed 0-5 A as stop semantics for EMS control.",
         "de": "Lokales Polling für ältere SmartCharge-Boxen stabilisiert, Online-Status bei kurzen Socket-Abbrüchen beibehalten, Messwerte gerundet, Leistung aus Spannung/Strom mit konfigurierbarer Phasenzahl berechnet und 0-5 A als Stopp-Semantik für die EMS-Steuerung ergänzt."
+      },
+      "0.2.2": {
+        "en": "Fixed local polling for SmartCharge boxes that send the status frame on the first handshake response, reduced false socket-close warnings, and improved transient handling for temporary network reachability problems.",
+        "de": "Lokales Polling für SmartCharge-Boxen korrigiert, die den Status bereits auf die erste Handshake-Antwort senden, falsche Socket-Close-Warnungen reduziert und die Behandlung vorübergehender Netzwerk-Erreichbarkeitsprobleme verbessert."
       }
     },
     "titleLang": {
